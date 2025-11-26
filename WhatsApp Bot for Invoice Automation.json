@@ -1,0 +1,378 @@
+{
+  "name": "WhatsApp Bot for Invoice Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-invoice",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -144,
+        0
+      ],
+      "id": "51fb8904-b041-42e1-b932-88c42191ec67",
+      "name": "Webhook to Receive WhatsApp Message",
+      "webhookId": "ca9de9df-faed-46e3-8bc1-d15eadafa27e"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cbcd979f-6be7-4f6f-853b-8c73e8561eb6",
+              "leftValue": "={{ $json.body.Body }}",
+              "rightValue": "convert",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        80,
+        0
+      ],
+      "id": "a03c6cf9-56a1-42e7-9867-2f5149c4a69a",
+      "name": "Filter the Convert Request"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.body.MediaUrl0 }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        304,
+        0
+      ],
+      "id": "d38745ce-bb43-4fbb-8f7c-f1df0e1e405d",
+      "name": "Receive the Invoice Image",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "oHs9Bn93DXayhrD2",
+          "name": "Twilio Artreden"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "text": "This is a photo of an invoice. Please extract the following details in JSON format:\n\n{\n  \"invoice_number\": \"\",\n  \"date\": \"\",\n  \"vendor\": \"\",\n  \"total\": \"\",\n  \"items\": [\n    { \"name\": \"\", \"qty\": \"\", \"price\": \"\", \"amount\": \"\" }\n  ]\n}\n\nOnly respond with JSON. No explanation or extra text.",
+        "inputType": "base64",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        528,
+        0
+      ],
+      "id": "d020a710-4775-4620-b296-98730141a39d",
+      "name": "Analyze Image with OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "4JIErVcWZfgEo4Kq",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get the raw string\nlet raw = $json[\"content\"];\n\n// 2. Remove triple backticks and \"json\\n\"\nraw = raw.replace(/```json\\n/, '').replace(/```$/, '');\n\n// 3. Parse the clean JSON\nconst invoice = JSON.parse(raw);\n\n// 4. Map the items to rows\nreturn invoice.items.map(item => ({\n  json: {\n    Date: invoice.date,\n    Vendor: invoice.vendor,\n    InvoiceNo: invoice.invoice_number,\n    Item: item.name,\n    Qty: item.qty || \"\",\n    Price: item.price || \"\",\n    Amount: item.amount || \"\",\n    Total: invoice.total,\n  }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        0
+      ],
+      "id": "4355d6fb-0959-4ce2-9818-cb98df9d9649",
+      "name": "Convert OpenAI Result into Structured Data"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1fQytu9GN2gkQ9kJlXMhEre9UsY7siWS589NXxIOoqxE",
+          "mode": "list",
+          "cachedResultName": "Invoice Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1fQytu9GN2gkQ9kJlXMhEre9UsY7siWS589NXxIOoqxE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1fQytu9GN2gkQ9kJlXMhEre9UsY7siWS589NXxIOoqxE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.Date }}",
+            "Vendor": "={{ $json.Vendor }}",
+            "InvoiceNo": "={{ $json.InvoiceNo }}",
+            "Item": "={{ $json.Item }}",
+            "Qty": "={{ $json.Qty }}",
+            "Price": "={{ $json.Price }}",
+            "Amount": "={{ $json.Amount }}"
+          },
+          "matchingColumns": [
+            "Date"
+          ],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Vendor",
+              "displayName": "Vendor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "InvoiceNo",
+              "displayName": "InvoiceNo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Item",
+              "displayName": "Item",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Qty",
+              "displayName": "Qty",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Price",
+              "displayName": "Price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Amount",
+              "displayName": "Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Total",
+              "displayName": "Total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        976,
+        0
+      ],
+      "id": "97048faa-dfe4-4838-8a0f-80a936fd6fa2",
+      "name": "Append or Update Google Sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "sv49YKt3KzmWUeMV",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all(); // all items from previous step\n\n// Get shared invoice info from the first item\nconst first = items[0].json;\nconst vendor = first.Vendor;\n\n// Build item lines\nconst lines = items.map(item => {\n  return `${item.json.Item}: ${item.json.Price}`;\n});\n\n// Final message\nconst message = `Oke, barang berikut sudah masuk ke Google Sheet ya:\\n\\n${vendor}\\n` + lines.join('\\n');\n\n// Extract recipient number from webhook\nconst phone = $node[\"Webhook to Receive WhatsApp Message\"].json[\"From\"];  // e.g. 'whatsapp:+62xxxxx'\n\n// Return single item for Twilio\nreturn [\n  {\n    json: {\n      phone,\n      message\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "id": "7f5c36c5-2cd6-4ee1-86e1-7d358319670f",
+      "name": "Generate Confirmation Message for User"
+    },
+    {
+      "parameters": {
+        "from": "=+14066934171",
+        "to": "=6285881141810",
+        "toWhatsapp": true,
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1424,
+        0
+      ],
+      "id": "8f7282b6-9c2d-49fc-8bff-c283265f11bd",
+      "name": "Send the Confirmation Message to WhatsApp",
+      "credentials": {
+        "twilioApi": {
+          "id": "izkKxXljuPMmzk4M",
+          "name": "Twilio account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook to Receive WhatsApp Message": {
+      "main": [
+        [
+          {
+            "node": "Filter the Convert Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter the Convert Request": {
+      "main": [
+        [
+          {
+            "node": "Receive the Invoice Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Receive the Invoice Image": {
+      "main": [
+        [
+          {
+            "node": "Analyze Image with OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Image with OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Convert OpenAI Result into Structured Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert OpenAI Result into Structured Data": {
+      "main": [
+        [
+          {
+            "node": "Append or Update Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or Update Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Generate Confirmation Message for User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Confirmation Message for User": {
+      "main": [
+        [
+          {
+            "node": "Send the Confirmation Message to WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4a21da13-6c15-4a87-a1aa-2eaab5e13b38",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e4c2661ca75c599be04b978873b7f069020ce5e9d36c369e8fe8333df88f28f3"
+  },
+  "id": "WaA7qb3Lv2DBlciX",
+  "tags": []
+}
